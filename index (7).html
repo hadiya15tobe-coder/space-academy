@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Space Academy</title>
+<style>
+:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#0b1030;--card:#1a2155;--ink:#f4f6ff;--mut:#aab4ff;--pk:#ff4fa3;--yl:#ffd23f;--gr:#3ddc97;--bl:#4cc9ff;--rd:#ff5a5f}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:radial-gradient(circle at 20% 0,#2a1f6b,var(--bg) 60%);color:var(--ink);font-family:"Trebuchet MS",system-ui,sans-serif;min-height:100vh}
+main{max-width:760px;margin:auto;padding:16px 16px 170px}
+h1{font-size:2rem;margin:.2em 0;background:linear-gradient(90deg,var(--yl),var(--pk),var(--bl));-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{margin:.3em 0;color:var(--yl)}
+.card{background:var(--card);border:2px solid #3b46a8;border-radius:18px;padding:14px;margin:10px 0}
+button{font:inherit;font-weight:700;border:0;border-radius:14px;padding:11px 16px;margin:4px 4px 4px 0;cursor:pointer;color:#10153a;background:var(--yl)}
+button:hover{filter:brightness(1.1);transform:translateY(-1px)}
+button.alt{background:var(--bl)}button.pk{background:var(--pk);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.ast{text-align:center;cursor:pointer;border:3px solid transparent}
+.ast.sel{border-color:var(--yl);box-shadow:0 0 18px var(--yl)}
+.av{width:84px;height:84px;border-radius:50%;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-size:48px;overflow:hidden}
+.av img{width:100%;height:100%;object-fit:cover}
+.bar{background:#0a0e2a;border-radius:10px;height:16px;overflow:hidden;margin:2px 0 8px}
+.bar i{display:block;height:100%;transition:width .4s}
+.res{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px}
+.res b{font-size:.85rem}
+input[type=text]{font:inherit;padding:9px;border-radius:10px;border:2px solid var(--bl);background:#0a0e2a;color:var(--ink)}
+.small{color:var(--mut);font-size:.9rem}
+#timing{position:relative;height:42px;background:#0a0e2a;border-radius:12px;overflow:hidden;margin:12px 0}
+#zone{position:absolute;top:0;height:100%;left:40%;width:20%;background:rgba(61,220,151,.45)}
+#dot{position:absolute;top:6px;width:30px;height:30px;border-radius:50%;background:var(--pk)}
+#inst{position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));max-width:min(340px,92vw);display:flex;gap:8px;align-items:flex-end;z-index:9;transition:transform .3s}
+#inst.hide{transform:translateY(160%)}
+#bub{background:#fff;color:#10153a;border-radius:16px 16px 4px 16px;padding:10px 12px;font-size:.88rem;box-shadow:0 6px 20px #0008}
+#bub b{color:#c2185b}
+#ico{font-size:44px;background:var(--pk);border-radius:50%;width:62px;height:62px;display:flex;align-items:center;justify-content:center;flex:none;border:3px solid #fff;cursor:pointer}
+.tag{display:inline-block;background:var(--pk);color:#fff;border-radius:8px;padding:2px 8px;font-size:.75rem;font-weight:700}
+</style></head><body><main id="app"></main>
+<div id="inst" class="hide"><div id="bub"></div><div id="ico" title="Tap to hide or show">🧑‍🚀</div></div>
+<script>
+const $=s=>document.querySelector(s),app=$("#app");
+let cust=[];
+const BASE=[
+{n:"Nova",e:"👩‍🚀",c:"#ff4fa3",role:"Engineer",perk:"Solar panels give +30% power",k:"pow"},
+{n:"Orion",e:"👨‍🚀",c:"#4cc9ff",role:"Doctor",perk:"Rest restores extra morale",k:"mor"},
+{n:"Sage",e:"🧑‍🌾",c:"#3ddc97",role:"Botanist",perk:"Farming grows +30% food",k:"food"},
+{n:"Kai",e:"🧑‍🔬",c:"#ffd23f",role:"Geologist",perk:"Research earns +30% points",k:"res"}];
+const MIS={
+moon:{name:"Moon: Shackleton Crater rim",icon:"🌙",delay:"about 1.3 seconds each way",
+ info:"Artemis is exploring the Moon’s south pole, where sunlight is low and some craters stay in permanent shadow. Surface temperatures swing from about 127 °C in sunlight to about −173 °C at night.",
+ start:{o2:75,pow:65,food:65,shield:30,fuel:55,mor:60}},
+mars:{name:"Mars: Jezero Crater",icon:"🔴",delay:"3 to 22 minutes each way",
+ info:"Jezero is an ancient river delta where the Perseverance rover searches for signs of past life. Mars has gravity of about 0.38 g, a very thin air layer, and almost no magnetic shield.",
+ start:{o2:70,pow:55,food:60,shield:25,fuel:50,mor:55}}};
+const PREP=[
+"On the space station, astronauts exercise about 2 hours a day. Without it, muscles and bones get weaker in microgravity.",
+"Before a spacewalk, astronauts breathe pure oxygen to flush nitrogen out of their blood and avoid decompression sickness.",
+"Moon dust is sharp and sticky, and Apollo crews found it clung to suits and scratched equipment. Cleaning gear is serious work."];
+const FACTS={flare:"NASA’s DONKI database logs solar flares and storms. In May 2024 it recorded a G5 geomagnetic storm, the strongest in about 20 years, and a flare as large as X8.7.",
+shelter:"During the Apollo era, a huge solar storm in August 1972 hit between Apollo 16 and 17. Luckily no crew was in space. Today, mission planners build storm shelters.",
+debris:"Tens of thousands of pieces of space junk are tracked. The space station sometimes fires thrusters to dodge them.",
+temp:"Machines and people both need heat control. On the Moon, a lunar night lasts about 14 Earth days, so power storage matters a lot.",
+air:"Landing and launch need a clear ‘go’ from controllers. Weather and traffic can delay a flight, and waiting is safer than rushing.",
+delay:"Radio signals travel at light speed, but Mars is so far that one message can take 3 to 22 minutes. Crews must decide a lot on their own.",
+o2:"One astronaut breathes roughly 0.8 kg of oxygen a day. Oxygen is recycled on the station but every kilogram counts.",
+food:"Growing plants helps crews eat fresh food and may help morale. NASA grows lettuce, radishes and peppers on the space station.",
+mor:"Teams that feel good work better. Space agencies plan time for calls home, hobbies and rest on long missions."};
+const EVENTS=[
+{id:"flare",t:"☀️ Solar flare alert!",x:"DONKI shows a big solar flare. Radiation could reach your outpost in about an hour.",f:"flare",ch:[
+ {t:"Hide in the storm shelter",fx:{pow:-8,mor:-5},m:"Safe! You lost some time and power, but you took no radiation."},
+ {t:"Keep working and trust your shield",fx:{},need:55,bad:{mor:-25,o2:-5},m:"Your shield level decides this one."}]},
+{id:"debris",t:"🛰️ Space debris near orbit!",x:"A piece of old rocket is passing close to your supply ship’s path.",f:"debris",ch:[
+ {t:"Fire thrusters to dodge",fx:{fuel:-15},m:"Dodged it! It cost fuel."},
+ {t:"Stay put and hope",fx:{},need:null,gamble:.35,bad:{fuel:-10,pow:-15},m:"Space is big, but risky."}]},
+{id:"temp",t:"🥶 Temperature crash!",x:"Outside temperature is falling fast. Heaters will drain your batteries.",f:"temp",ch:[
+ {t:"Turn heaters up",fx:{pow:-20},m:"Warm and safe, but your batteries dropped."},
+ {t:"Save power, wear warm layers",fx:{mor:-12,pow:-6},m:"Chilly! Morale fell, but you saved power."}]},
+{id:"air",t:"🚀 Landing clearance?",x:"A cargo lander wants permission to land with supplies. The landing pad has dust clouds.",f:"air",ch:[
+ {t:"Clear the pad first (takes effort)",fx:{pow:-8,o2:-3,food:12,o2b:10},m:"Pad cleared. Supplies arrived safely."},
+ {t:"Tell lander to wait a day",fx:{mor:-4,fuel:-4},m:"Safe, but supplies come late."}]},
+{id:"o2",t:"💨 Oxygen leak!",x:"A small seal is leaking. Alarms are blinking.",f:"o2",ch:[
+ {t:"Stop and repair it now",fx:{o2:-4,pow:-6},m:"Fixed. A little air was lost."},
+ {t:"Patch fast and keep researching",fx:{o2:-18,score:8},m:"More research, but you lost lots of air."}]},
+{id:"food",t:"🌱 Crop trouble!",x:"The plants look sick. The lights are too dim.",f:"food",ch:[
+ {t:"Boost grow lights",fx:{pow:-12,food:10},m:"Plants recovered."},
+ {t:"Eat stored food instead",fx:{food:-12},m:"Your supplies shrank."}]},
+{id:"meteor",t:"☄️ Micrometeoroid hit!",x:"A tiny fast space rock hit the hull. Is your shield thick enough?",f:"debris",ch:[{t:"Patch the hull now",fx:{o2:-6,shield:-5,pow:-6},m:"Patched, but it cost air and power."},{t:"Trust your shield",fx:{},need:50,bad:{o2:-22,shield:-10},m:"Shield check"}]},
+{id:"dust",site:"mars",t:"🌪️ Dust storm!",x:"Mars dust is covering your solar panels and blocking sunlight.",f:"temp",ch:[{t:"Sit it out and save power",fx:{pow:-14,mor:-8},m:"You waited it out, but power dropped."},{t:"Go outside and clean panels",fx:{o2:-8,pow:6},gamble:.4,bad:{pow:-15,mor:-8},m:"Panels cleaned, power returned."}]},
+{id:"night",site:"moon",t:"🌑 Long shadow!",x:"A long shadow is crossing your solar panels. Batteries will carry the base.",f:"temp",ch:[{t:"Switch to battery saver",fx:{pow:-10,mor:-6},m:"Dim lights, but you lasted."},{t:"Run everything at full power",fx:{pow:-24,score:10},m:"Extra research, but the batteries drained."}]},
+{id:"mor",t:"💬 Crew feeling low",x:"Everyone misses home. Is it time for a call or a game night?",f:"mor",ch:[
+ {t:"Game night!",fx:{mor:20,pow:-4},m:"Spirits are up."},
+ {t:"Keep working",fx:{score:6,mor:-10},m:"Extra points, but a tired crew."}]},
+{id:"delay",t:"📡 Strange reading!",x:"An alarm shows odd pressure numbers. You can ask Mission Control or decide now.",f:"delay",ch:[
+ {t:"MC",ask:1,fx:{shield:5},m:"Helpful advice arrived."},
+ {t:"Decide yourself",fx:{},gamble:.5,bad:{o2:-12,pow:-8},m:"Brave, but risky."}]}];
+
+let st={};
+const clamp=v=>Math.max(0,Math.min(100,v));
+function inst(txt){const b=$("#bub");b.innerHTML="<b>Cmdr Nova says:</b><br>"+txt;$("#inst").classList.remove("hide")}
+$("#ico").onclick=()=>$("#inst").classList.toggle("hide");
+function av(a){return a.img?`<div class="av"><img src="${a.img}" alt=""></div>`:`<div class="av" style="background:${a.c}">${a.e}</div>`}
+
+function title(){
+ $("#inst").classList.add("hide");
+ app.innerHTML=`<h1>🚀 Space Academy</h1><div class="card"><p>Run a Moon base for 20 sols, then land on the Moon (days). Balance oxygen, power, food, shielding, fuel and morale. Every choice costs something.</p><p class="small">Facts in this game are based on real NASA science. The solar storm events are inspired by NASA’s DONKI records.</p><button onclick="pick()">Start training!</button></div>`;
+ setTimeout(()=>inst("Welcome, cadet! I’m Commander Nova, your instructor. I’ll pop up with real space facts."),400);
+}
+function pick(){
+ const all=[...BASE,...cust];
+ app.innerHTML=`<h2>Choose your astronaut</h2><div class="grid">${all.map((a,i)=>`<div class="card ast ${st.a===a?"sel":""}" onclick="st.a=all[${i}];pick()">${av(a)}<b>${a.n}</b><div class="small">${a.role||"Explorer"}<br>${a.perk||"+5 starting morale"}</div></div>`).join("")}</div>
+ <div class="card"><b>Add your own astronaut design</b><br><span class="small">Upload a picture and give a name.</span><br><input type="text" id="cn" placeholder="Astronaut name" maxlength="14"> <input type="file" id="cf" accept="image/*"></div>
+ <button ${st.a?"":"disabled"} onclick="prep()">Next: Prep training</button>`;
+ $("#cf").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement("canvas");c.width=c.height=160;const x=c.getContext("2d");const s=Math.min(im.width,im.height);x.drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,160,160);const a={n:$("#cn").value||"Explorer",img:c.toDataURL("image/jpeg",.8),k:"x"};cust.push(a);st.a=a;pick();inst("Great design, "+a.n+"! Space suits are custom fit for every astronaut.")};im.src=r.result};r.readAsDataURL(f)};
+ inst("Pick your teammate. Each has a special skill. You can also upload your own design!");
+}
+let pr={r:0,s:0,p:0,raf:0};
+function prep(){pr={r:0,s:0,p:0,raf:0};round()}
+function round(){
+ cancelAnimationFrame(pr.raf);
+ if(pr.r>=3){const sc=pr.s;app.innerHTML=`<h2>Training done!</h2><div class="card">${av(st.a)}You hit ${sc} of 3 targets. ${sc>=2?"You’re strong and ready. Bonus starting morale!":"Good effort. Every day of practice helps."}</div><button onclick="pickM()">Choose mission</button>`;st.fit=sc;inst("Training complete! Strong teams plan ahead before every launch.");return}
+ app.innerHTML=`<h2>Astronaut prep exercise ${pr.r+1}/3</h2><div class="card"><div class="small">Press the button when the pink dot is in the green zone.</div><div id="timing"><div id="zone"></div><div id="dot"></div></div><button class="pk" id="hit">Now!</button></div>`;
+ inst(PREP[pr.r]);let t0=performance.now();const sp=0.0012+pr.r*0.0005;
+ const tick=n=>{pr.p=Math.abs(((n-t0)*sp)%2-1);$("#dot").style.left=pr.p*(($("#timing").clientWidth)-30)+"px";pr.raf=requestAnimationFrame(tick)};pr.raf=requestAnimationFrame(tick);
+ $("#hit").onclick=()=>{cancelAnimationFrame(pr.raf);const ok=pr.p>.38&&pr.p<.62;if(ok)pr.s++;$("#hit").outerHTML=`<b>${ok?"✅ Perfect!":"❌ Missed"}</b> <button onclick="pr.r++;round()">Next</button>`}}
+function pickM(){
+ app.innerHTML=`<h2>Choose your mission</h2>`+Object.entries(MIS).map(([k,m])=>`<div class="card"><h2>${m.icon} ${m.name}</h2><p>${m.info}</p><p class="small">Radio delay to Earth: ${m.delay}</p><button class="alt" onclick="pre('${k}')">Preflight check</button></div>`).join("");
+ inst("The Moon is close, with a short radio delay. Mars is far, so you must be more independent.");
+}
+const rl=()=>{const r=Math.random();return r<.3?0:r<.7?1:2};
+const CD=[
+{n:"Fuel load",i:"⛽",r:"fuel",f:"Most of a rocket’s weight at launch is fuel, so every extra kilogram of cargo needs even more fuel.",d:["Tanks are full and sensors are green.","Fuel is a bit low for the trip.","Fuel leak found and tanks are low!"],fx:["Top off the tanks","Fix the leak and refuel"]},
+{n:"Space debris on path",i:"🛰️",r:"fuel",f:FACTS.debris,d:["The flight path is clear.","A rocket piece may pass close to the path.","Several tracked objects cross your path!"],fx:["Plan a small dodge burn","Move the launch window"]},
+{n:"Pad temperature",i:"🌡️",r:"pow",f:"Cold makes rubber seals stiff, so rockets have temperature limits for launch. Heat strains batteries.",d:["Temperature is in the safe range.","Pad is chilly and batteries are cold.","Freezing! Seals and batteries are at risk!"],fx:["Pre-warm the batteries","Heat the seals and the pad"]},
+{n:"Airspace clearance",i:"🚦",r:"food",f:FACTS.air,d:["Controllers say GO. The sky is clear.","A storm cloud is near the launch range.","Storms and aircraft block the airspace!"],fx:["Request a new corridor","Wait for controllers to reroute"]},
+{n:"Solar activity (DONKI)",i:"☀️",r:"shield",f:FACTS.flare,d:["DONKI shows a quiet Sun today.","DONKI logged a medium solar flare.","DONKI shows a strong flare and storm warning!"],fx:["Add shield padding","Build a storm shelter plan"]},
+{n:"Comms check",i:"📡",r:"mor",f:FACTS.delay,d:["Radio link to Earth is strong.","Signal is a bit noisy.","The main antenna won’t lock on!"],fx:["Re-aim the antenna","Swap in the backup radio"]}];
+let pf={};
+function pre(k){pf={k,hrs:4,dl:0,c:CD.map(c=>({...c,l:rl()}))};pfShow()}
+function pfShow(){
+ const col=["var(--gr)","var(--yl)","var(--rd)"],lab=["GO","CAUTION","NO-GO"];
+ const reds=pf.c.filter(c=>c.l===2).length;
+ app.innerHTML=`<h2>${MIS[pf.k].icon} Pre-operation Go/No-Go</h2><div class="card small">Crew-hours left: <b>${pf.hrs}</b> (caution costs 1 hour to fix, no-go costs 2). Unfixed problems cost supplies at launch. Two or more NO-GOs scrub the launch! Delays so far: ${pf.dl}</div>`+pf.c.map((c,i)=>`<div class="card" style="border-color:${col[c.l]}"><b>${c.i} ${c.n}</b> <span class="tag" style="background:${col[c.l]};color:#10153a">${lab[c.l]}</span><br>${c.d[c.l]}<br>${c.l?`<button class="alt" ${pf.hrs<c.l?"disabled":""} onclick="pfFix(${i})">🔧 ${c.fx[c.l-1]} (${c.l} hr)</button>`:""}<button onclick="inst(pf.c[${i}].f)" style="background:#fff">❓ Why it matters</button></div>`).join("")
+ +`<button class="pk" ${reds>1?"disabled":""} onclick="pfGo()">${reds>1?"🚫 Launch scrubbed":"🚀 GO for launch"}</button><button onclick="pfDelay()">⏳ Delay a day (new check, costs food and morale)</button>`;
+ inst(reds>1?"Two NO-GO items! Mission control would scrub this launch.":"Check each item carefully. Tap ‘Why it matters’ for a fact.");
+}
+function pfFix(i){const c=pf.c[i];pf.hrs-=c.l;c.l=0;pfShow()}
+function pfDelay(){pf.dl++;pf.hrs=4;pf.c=pf.c.map(c=>({...c,l:rl()}));pfShow()}
+function pfGo(){const mod={};pf.c.forEach(c=>{if(c.l)mod[c.r]=(mod[c.r]||0)-(c.l===1?6:16)});mod.food=(mod.food||0)-4*pf.dl;mod.mor=(mod.mor||0)-4*pf.dl;go(pf.k,mod)}
+function sc(fx){const f=1+st.day*.03,o={};for(const k in fx)o[k]=fx[k]<0?Math.round(fx[k]*f):fx[k];return o}
+function go(k,mod={}){
+ const m=MIS[k],s={...m.start};for(const r in mod)s[r]=clamp(s[r]+mod[r]);
+ st={...st,k,day:1,sc:0,ch2:0,...s,mor:clamp(s.mor+(st.fit>=2?10:0)+(st.a.k==="x"?5:0)),log:"Launch complete! Unfixed problems cost some starting supplies."};turn();
+}
+function bars(){
+ const R=[["💨 Oxygen","o2","var(--bl)"],["⚡ Power","pow","var(--yl)"],["🍎 Food","food","var(--gr)"],["🛡️ Shield","shield","#b388ff"],["⛽ Fuel","fuel","#ff9f1c"],["😊 Morale","mor","var(--pk)"]];
+ return `<div class="card res">${R.map(r=>`<div><b>${r[0]} ${Math.round(st[r[1]])}</b><div class="bar"><i style="width:${st[r[1]]}%;background:${r[2]}"></i></div></div>`).join("")}</div>`;
+}
+function turn(){
+ if(st.day>20||st.o2<=0||st.food<=0||st.pow<=0)return end();
+ const m=MIS[st.k];
+ app.innerHTML=`<h2>${m.icon} Sol ${st.day} of 20 <span class="tag">${st.a.n}</span></h2>${bars()}<div class="card small">${st.log}</div><div class="card"><b>What will you do today?</b> <span class="small">(Daily upkeep grows as the mission goes on, and your shield wears down.)</span><br>
+ <button onclick="act('res')">🔬 Research<br><small>+points, −14 power, −4 oxygen</small></button>
+ <button onclick="act('farm')" class="alt">🌱 Farm<br><small>+food, −10 power</small></button>
+ <button onclick="act('shield')" class="alt">🛡️ Reinforce shield<br><small>+shield, −8 power</small></button>
+ <button onclick="act('sun')">☀️ Clean solar panels<br><small>+power</small></button>
+ <button onclick="act('o2')" class="alt">💨 Make oxygen<br><small>+oxygen, −10 power</small></button>
+ <button onclick="act('rest')" class="pk">🛌 Exercise and rest<br><small>+morale</small></button></div>`;
+ inst(day1fact());
+}
+function day1fact(){return ["o2","food","mor","temp"].map(k=>FACTS[k])[(st.day-1)%4]}
+function ap(fx,mul){for(const k in fx){if(k==="score")st.sc+=fx[k];else if(k==="o2b")continue;else st[k]=clamp(st[k]+fx[k])}}
+function act(a){
+ const A=st.a.k;const u=Math.floor(st.day/5);let fx={o2:-4-u,food:-3-u,pow:-4-u,shield:-2},msg="";
+ if(a==="res"){fx.pow-=14;fx.o2-=4;st.sc+=Math.round(12*(A==="res"?1.3:1));msg="Research done! "}
+ if(a==="farm"){fx.pow-=10;fx.food+=Math.round(24*(A==="food"?1.3:1));msg="Plants grew. "}
+ if(a==="shield"){fx.pow-=8;st.shield=clamp(st.shield+14);msg="Shield strengthened. "}
+ if(a==="sun"){fx.pow+=Math.round(26*(A==="pow"?1.3:1));msg="Panels are shiny. "}
+ if(a==="o2"){fx.pow-=10;fx.o2+=24;msg="Oxygen generator split water into air. "}
+ if(a==="rest"){fx.mor=Math.round(14*(A==="mor"?1.5:1));msg="Crew refreshed. "}
+ ap(fx);st.log=msg;event();
+}
+function event(){
+ const L=EVENTS.filter(e=>!e.site||e.site===st.k);const ev=L[Math.floor(Math.random()*L.length)];st.ev=ev;const m=MIS[st.k];
+ app.innerHTML=`<h2>${ev.t}</h2>${bars()}<div class="card">${ev.x}</div>`+ev.ch.map((c,i)=>`<button class="${i?"alt":"pk"}" onclick="choose(${i})">${c.ask?(st.k==="mars"?"📡 Ask Mission Control (wait "+m.delay+")":"📡 Ask Mission Control ("+m.delay+")"):c.t}</button>`).join("");
+ inst(FACTS[ev.f]+(st.k==="mars"&&ev.f==="delay"?" On Mars, asking costs time and supplies.":""));
+}
+function choose(i){
+ const ev=st.ev,c=ev.ch[i];let out=c.m;let fx=sc({...c.fx});
+ if(c.ask&&st.k==="mars"){fx.o2=(fx.o2||0)-4;fx.food=(fx.food||0)-3;out+=" But the delay cost you time and supplies."}
+ ap(fx);
+ const nd=c.need!=null?Math.round(c.need+st.day*1.5):0;if(c.need!=null&&st.shield<nd){ap(sc(c.bad));out="Shield too weak! It was "+Math.round(st.shield)+" but needed "+nd+". You took damage."}
+ else if(c.need!=null)out="Your shield (level "+Math.round(st.shield)+") held strong. No harm!";
+ if(c.gamble!=null&&Math.random()<c.gamble+.15){ap(sc(c.bad));out="That gamble backfired! "+(c.m)}
+ st.log=st.log+out;
+ if(st.day>3&&!st.ch2&&st.o2>0&&st.food>0&&st.pow>0&&Math.random()<.3){st.ch2=1;st.log+=" ⚠️ Another alert!";return event()}
+ st.ch2=0;st.day++;turn();
+}
+function end(){
+ const won=st.day>20&&st.o2>0&&st.food>0&&st.pow>0;
+ const score=st.sc+Math.round((st.o2+st.pow+st.food+st.shield+st.mor)/10)+(won?30:0);
+ const why=st.o2<=0?"You ran out of oxygen.":st.pow<=0?"You ran out of power.":st.food<=0?"You ran out of food.":"";
+ app.innerHTML=`<h1>${won?"🎉 Mission success!":"🛑 Mission over"}</h1><div class="card">${av(st.a)}<p>${won?"Your crew survived all 20 sols!":why+" Real mission planners keep safety margins for this reason."}</p><h2>Score: ${score}</h2><p>Research points: ${st.sc}</p></div>
+ <div class="card"><b>What you learned</b><ul><li>Every resource is linked: power runs air, food, heat and research.</li><li>Radiation shielding is worth building before a storm, not during.</li><li>The farther from Earth, the more independent a crew has to be.</li></ul></div><button onclick="st={};title()">Play again</button> <button class="alt" onclick="pickM()">Retry the mission</button>`;
+ inst(won?"Outstanding work, commander! Real crews train for years for this.":"Every mission teaches us something. Try again with more safety margin!");
+}
+const SY=document.createElement("style");SY.textContent=`.stage{display:flex;align-items:flex-end;justify-content:center;gap:18px;height:130px;background:linear-gradient(#150f45,#2a1f6b);border-radius:14px;margin-bottom:8px;overflow:hidden;padding-bottom:6px}.eq{font-size:56px}#sav{display:inline-block}.run.go{animation:run .35s}.pedal.go{animation:pedal .4s}.lift.go{animation:lift .5s}.walk{animation:walk 2s ease-in-out}@keyframes run{50%{transform:translateY(-16px) rotate(-8deg)}}@keyframes pedal{50%{transform:rotate(12deg) translateX(8px)}}@keyframes lift{50%{transform:scaleY(.82) translateY(10px)}}@keyframes walk{0%{transform:translateX(-70px)}40%{transform:translateX(0)}60%{transform:translateY(-10px)}}`;document.head.appendChild(SY);
+const EX=[
+{n:"Treadmill run",ic:"🛞",an:"run",btn:"👟 Step!",q:"On the space station treadmill, astronauts wear a harness to keep themselves from floating off.",a:true,e:"True! In microgravity they would float away, so cords hold them to the belt."},
+{n:"Cycle ergometer",ic:"🚴",an:"pedal",btn:"🚴 Pedal!",q:"Floating in space works your muscles enough, so astronauts don’t need to exercise.",a:false,e:"False! Without gravity’s pull, bones and muscles weaken, so crews work out every day."},
+{n:"Resistance machine",ic:"🏋️",an:"lift",btn:"💪 Lift!",q:"Astronauts exercise about 2 hours a day on the space station.",a:true,e:"True! It helps protect their bones, muscles and heart. The station’s lifting machine uses vacuum cylinders because weights float."}];
+let tx={};
+function prep(){tx={r:0,s:0};ex()}
+function ex(){
+ if(tx.r>=3){st.fit=tx.s;app.innerHTML=`<h2>Training done!</h2><div class="card">${av(st.a)}<p>You got ${tx.s} of 3 fact checks right. ${tx.s>=2?"Strong and sharp! Bonus starting morale.":"Keep studying! Every fact helps."}</p></div><button onclick="pickM()">Choose mission</button>`;inst("Training complete! Strong, smart teams plan ahead.");return}
+ const e=EX[tx.r];tx.reps=0;
+ app.innerHTML=`<h2>Exercise ${tx.r+1}/3: ${e.n}</h2><div class="card"><div class="stage"><div id="sav" class="${e.an}">${av(st.a)}</div><div class="eq">${e.ic}</div></div><div class="bar"><i id="rb" style="width:0;background:var(--gr)"></i></div><button class="pk" id="rep">${e.btn}</button> <span class="small" id="rc">Reps: 0/12</span><div id="fc"></div></div>`;
+ inst(PREP[tx.r]);
+ $("#rep").onclick=()=>{const s=$("#sav");s.classList.remove("go");void s.offsetWidth;s.classList.add("go");tx.reps++;$("#rb").style.width=tx.reps/12*100+"%";$("#rc").textContent="Reps: "+tx.reps+"/12";
+  if(tx.reps===6)fc(e);
+  if(tx.reps>=12)$("#rep").outerHTML=`<button onclick="tx.r++;ex()">Next ➜</button>`}
+}
+function fc(e){$("#rep").disabled=true;$("#fc").innerHTML=`<div class="card" style="background:#fff;color:#10153a"><b>🧠 Fact check!</b><br>${e.q}<br><button onclick="fa(true)">True</button><button class="pk" onclick="fa(false)">False</button></div>`;inst("Fact check time! Think about what you’ve learned.")}
+function fa(v){const e=EX[tx.r],ok=v===e.a;if(ok)tx.s++;$("#fc").innerHTML=`<div class="card"><b>${ok?"✅ Correct!":"❌ Not quite."}</b> ${e.e}</div>`;$("#rep").disabled=false;inst(e.e)}
+const TK=["refuelling the tanks","clearing debris with the robot arm","warming the pad and batteries","talking to air traffic control","fitting shield panels","re-aiming the antenna"];
+const _ps=pfShow;
+pfShow=function(){_ps();app.querySelector("h2").insertAdjacentHTML("afterend",`<div class="card"><div class="stage"><div id="sav">${av(st.a)}</div><div class="eq" id="wk">🧰</div></div><div id="ws" class="small">${st.a.n} is suited up. Choose a task to fix!</div></div>`)};
+function pfFix(i){
+ if(pf.busy)return;const c=pf.c[i];pf.busy=1;
+ document.querySelectorAll("#app button").forEach(b=>b.disabled=true);
+ $("#sav").className="walk";$("#wk").textContent=c.i;
+ $("#ws").innerHTML=`<b>${st.a.n}</b> is ${TK[i]}...<div class="bar"><i id="pb" style="width:0;transition:width 1.8s linear;background:var(--gr)"></i></div>`;
+ setTimeout(()=>$("#pb").style.width="100%",30);inst(c.f);
+ setTimeout(()=>{pf.busy=0;pf.hrs-=c.l;c.l=0;pfShow()},2000);
+}
+let IV=0,RA=0;
+const S2=document.createElement('style');S2.textContent=`.stage{height:190px;gap:10px}.astro{width:112px;height:auto;overflow:visible}.avf svg{width:96px}.astro g{transform-box:fill-box}.legL,.legR{transform-origin:50% 0}.armL,.armR{transform-origin:50% 5%}.on.run .legL,.on.pedal .legL{animation:lg .3s infinite alternate}.on.run .legR,.on.pedal .legR{animation:lg .3s infinite alternate-reverse}.on.run .armL{animation:lg .3s infinite alternate-reverse}.on.run .armR{animation:lg .3s infinite alternate}.on.work .armR,.on.work .armL{animation:lg .25s 4 alternate}.on.run .fig{animation:hop .3s infinite alternate}.on.lift .fig{animation:sq .55s infinite alternate}.on .belt{animation:bt .4s linear infinite}.on .wh{animation:sp .6s linear infinite}@keyframes lg{from{transform:rotate(-35deg)}to{transform:rotate(35deg)}}@keyframes hop{to{transform:translateY(-8px)}}@keyframes sq{to{transform:translateY(16px)}}@keyframes bt{to{stroke-dashoffset:-20}}@keyframes sp{to{transform:rotate(360deg)}}`;document.head.appendChild(S2);
+BASE.length=0;BASE.push(
+{n:'Sally',role:'Engineer',perk:'Solar panels give +30% power',k:'pow',c:'#ff4fa3',sk:'#f1c27d',h:'#5b3a1e',g:1},
+{n:'Orion',role:'Doctor',perk:'Resting restores extra morale',k:'mor',c:'#4cc9ff',sk:'#8d5524',h:'#10153a',g:0},
+{n:'Hannah',role:'Botanist',perk:'Farming grows +30% food',k:'food',c:'#3ddc97',sk:'#ffdbac',h:'#d9822b',g:1},
+{n:'Billy',role:'Geologist',perk:'Research earns +30% points',k:'res',c:'#ffd23f',sk:'#c68642',h:'#3b2314',g:0});
+FACTS.flare='DONKI stands for Space Weather Database Of Notifications, Knowledge, Information. NASA uses it to log solar flares, huge solar eruptions called CMEs, and geomagnetic storms. In May 2024 it recorded a G5 storm, the strongest in about 20 years.';
+FACTS.debris='NASA tracks more than 27,000 pieces of orbital debris larger than a softball. The space station has fired its thrusters many times to dodge debris.';
+CD[0].f='At liftoff, most of a rocket’s mass is propellant (fuel and oxidizer). That is why leaks and overfilling are taken very seriously.';
+CD[1].f=FACTS.debris;
+CD[2].f='Engineers set temperature limits for launches, because very cold rubber seals can stop sealing well and cold batteries lose power.';
+CD[3].f='NASA uses launch commit criteria, a checklist of weather and safety rules. A launch only goes if every rule is met, such as no lightning near the pad and a clear flight path.';
+CD[4].f=FACTS.flare;
+function astro(a,p){
+ const S='#10153a',w=`stroke='#10153a' stroke-width='2'`,L=p==='lift';
+ const arm=(c,x,r)=>`<g class='${c}'${r?` style='transform:rotate(${r}deg)'`:''}><rect x='${x}' y='64' width='15' height='48' rx='7.5' fill='${a.c}' ${w}/><circle cx='${x+7.5}' cy='114' r='8' fill='#fff' ${w}/></g>`;
+ const leg=(c,x)=>`<g class='${c}'><rect x='${x}' y='122' width='17' height='60' rx='8' fill='${a.c}' ${w}/><rect x='${x-2}' y='170' width='21' height='14' rx='6' fill='#fff' ${w}/></g>`;
+ const eq=p==='run'?`<rect class='belt' x='12' y='184' width='116' height='12' rx='6' fill='#1b1f4d' stroke='#8892ff' stroke-width='3' stroke-dasharray='10 10'/>`:p==='pedal'?`<g class='wh'><circle cx='70' cy='192' r='22' fill='none' stroke='#8892ff' stroke-width='5' stroke-dasharray='9 7'/></g><rect x='28' y='100' width='20' height='5' rx='2' fill='#8892ff'/>`:'';
+ const bar=L?`<rect x='0' y='22' width='140' height='5' rx='2' fill='#cfd6ff'/><rect x='0' y='10' width='9' height='29' rx='3' fill='${S}'/><rect x='131' y='10' width='9' height='29' rx='3' fill='${S}'/>`:'';
+ return `<svg class='astro ${p}' viewBox='0 0 140 220'>${eq}<g class='fig'><rect x='40' y='66' width='60' height='52' rx='10' fill='#cfd6ff' ${w}/>${leg('legL',52)}${leg('legR',71)}<rect x='46' y='62' width='48' height='64' rx='18' fill='${a.c}' ${w}/><rect x='58' y='76' width='24' height='22' rx='5' fill='#fff' opacity='.9'/><circle cx='64' cy='87' r='3' fill='#ff5a5f'/><circle cx='76' cy='87' r='3' fill='#3ddc97'/>${arm('armL',28,L?150:0)}${arm('armR',97,L?-150:0)}${bar}<circle cx='70' cy='34' r='30' fill='#fff' ${w}/><ellipse cx='70' cy='36' rx='22' ry='19' fill='#1b2a6b'/><circle cx='70' cy='38' r='14' fill='${a.sk}'/>${a.g?`<circle cx='56' cy='46' r='5' fill='${a.h}'/><circle cx='84' cy='46' r='5' fill='${a.h}'/>`:''}<path d='M56 36Q70 18 84 36Q70 29 56 36Z' fill='${a.h}'/><circle cx='64' cy='38' r='2' fill='${S}'/><circle cx='76' cy='38' r='2' fill='${S}'/><path d='M64 45Q70 50 76 45' fill='none' stroke='${S}' stroke-width='2' stroke-linecap='round'/></g></svg>`;
+}
+function av(a){return `<div class='avf'>${astro(a,'idle')}</div>`}
+function bob(){const s=document.querySelector('.stage svg');if(!s)return;s.classList.add('on');clearTimeout(bob.t);bob.t=setTimeout(()=>s.classList.remove('on'),500)}
+function pick(){
+ app.innerHTML=`<h2>Choose your astronaut</h2><div class='grid'>${BASE.map((a,i)=>`<div class='card ast ${st.a===a?'sel':''}' onclick='st.a=BASE[${i}];pick()'><div style='text-align:center'>${av(a)}</div><b>${a.n}</b><div class='small'>${a.role}<br>${a.perk}</div></div>`).join('')}</div><button ${st.a?'':'disabled'} onclick='prep()'>Next: Prep training</button>`;
+ inst(st.a?st.a.n+' the '+st.a.role+' is a great choice!':'Pick your teammate. Each astronaut has a special skill.');
+}
+const TR=[
+{n:'Treadmill run',pose:'run',b:'👟 Step!',fa:['On the space station, astronauts run on a treadmill while wearing a harness with cords that hold them down, because they would float away.','Station crews exercise about 2 hours a day. Without it, bones can lose around 1 to 1.5% of their density each month.']},
+{n:'Cycle ergometer',pose:'pedal',b:'🚴 Pedal!',fa:['The station’s exercise bike is called CEVIS. The name means Cycle Ergometer with Vibration Isolation and Stabilization.','CEVIS is mounted so that pedaling doesn’t shake the station and spoil delicate science experiments.']},
+{n:'Resistance machine',pose:'lift',b:'💪 Lift!',fa:['Weights are weightless in orbit, so the station’s ARED machine uses vacuum cylinders to make lifting hard, up to about 270 kg (600 lb).','In microgravity the spine stretches and astronauts can grow up to about 3% taller. They shrink back after returning to Earth.']}];
+function ex(){
+ if(tx.r>=3){st.fit=3;app.innerHTML=`<h2>Training done!</h2><div class='card'><div style='text-align:center'>${av(st.a)}</div><p>${st.a.n} finished all three workouts and is ready for the mission. Bonus starting morale!</p></div><button onclick='pickM()'>Choose mission</button>`;inst('Training complete! Real astronauts keep up this routine the whole mission.');return}
+ const e=TR[tx.r];tx.reps=0;
+ app.innerHTML=`<h2>Exercise ${tx.r+1}/3: ${e.n}</h2><div class='card'><div class='stage'>${astro(st.a,e.pose)}</div><div class='bar'><i id='rb' style='width:0;background:var(--gr)'></i></div><button class='pk' id='rep'>${e.b}</button> <span class='small' id='rc'>Reps: 0/12</span><div id='fc'></div></div>`;
+ inst('Warm up, '+st.a.n+'! Tap the button to do your reps.');
+ $('#rep').onclick=()=>{bob();tx.reps++;$('#rb').style.width=tx.reps/12*100+'%';$('#rc').textContent='Reps: '+tx.reps+'/12';
+  if(tx.reps===3||tx.reps===8){const f=e.fa[tx.reps===3?0:1];$('#fc').innerHTML=`<div class='card' style='background:#fff;color:#10153a'><b>📚 Real fact:</b> ${f}</div>`;inst(f)}
+  if(tx.reps>=12)$('#rep').outerHTML=`<button onclick='tx.r++;ex()'>Next ➜</button>`}
+}
+function won(i){clearInterval(IV);cancelAnimationFrame(RA);bob();$('#rg').innerHTML=`<div class='card' style='background:#fff;color:#10153a'><b>✅ Fixed!</b> ${st.a.n} solved it.</div><button class='pk' onclick='pfDone(${i})'>Back to checklist</button>`;inst('Great job, '+st.a.n+'! Problem solved.')}
+function lose(i,m){clearInterval(IV);cancelAnimationFrame(RA);$('#rg').innerHTML=`<div class='card'><b>❌ ${m}</b></div><button class='pk' onclick='repair(${i})'>Try again</button><button class='alt' onclick='pfShow()'>Back</button>`}
+function pfDone(i){const c=pf.c[i];pf.hrs-=c.l;c.l=0;pfShow()}
+function pfFix(i){repair(i)}
+function repair(i){clearInterval(IV);cancelAnimationFrame(RA);const c=pf.c[i],t=RP[i];
+ app.innerHTML=`<h2>${c.i} ${t.h}</h2><div class='card'><div class='stage'>${astro(st.a,'work')}<div class='eq'>${c.i}</div></div><div id='rg'></div></div>`;
+ inst(c.f);t.m(i,t)}
+function mTiming(i,t){const l=pf.c[i].l,need=l+1;let hits=0,p=0;
+ $('#rg').innerHTML=`<div class='small'>${t.d} Hits needed: <b id='hn'>${need}</b></div><div id='timing'><div id='zone'></div><div id='dot'></div></div><button class='pk' id='go'>${t.b}</button>`;
+ const t0=performance.now(),sp=.0009+l*.0006;
+ const tick=n=>{p=Math.abs(((n-t0)*sp)%2-1);const d=$('#dot');if(d)d.style.left=p*($('#timing').clientWidth-30)+'px';RA=requestAnimationFrame(tick)};RA=requestAnimationFrame(tick);
+ $('#go').onclick=()=>{if(p>.38&&p<.62){hits++;bob();$('#hn').textContent=need-hits;if(hits>=need)won(i)}else lose(i,'Missed the green zone!')}}
+function mTap(i,t){const n=2+pf.c[i].l*2;let left=n,T=12,tk=0;const ts=[];
+ $('#rg').innerHTML=`<div class='small'>${t.d} <b id='hn'>${n}</b> left. Time: <b id='tm'>12</b>s</div><div id='fld' style='position:relative;height:190px;background:#0a0e2a;border-radius:12px;overflow:hidden'></div>`;
+ const f=$('#fld');
+ for(let k=0;k<n;k++){const e=document.createElement('button');e.textContent=t.em;e.style.cssText='position:absolute;font-size:30px;padding:2px 6px;background:transparent;margin:0';e.x=Math.random()*80;e.y=Math.random()*70;e.vx=(Math.random()<.5?-1:1)*(.6+Math.random()*1.4);e.vy=(Math.random()<.5?-1:1)*(.6+Math.random()*1.4);
+  e.onclick=()=>{e.remove();ts.splice(ts.indexOf(e),1);bob();$('#hn').textContent=--left;if(!left)won(i)};f.appendChild(e);ts.push(e)}
+ IV=setInterval(()=>{ts.forEach(e=>{e.x+=e.vx;e.y+=e.vy;if(e.x<0||e.x>90)e.vx*=-1;if(e.y<0||e.y>80)e.vy*=-1;e.style.left=e.x+'%';e.style.top=e.y+'%'});
+  if(++tk%20===0){$('#tm').textContent=--T;if(T<=0)lose(i,'Time’s up!')}},50)}
+function mHold(i,t){const need=4+pf.c[i].l*3;let T=30,ok=0;
+ $('#rg').innerHTML=`<div class='small'>${t.d} Time in green: <b id='hn'>0</b>/${need}s</div><div style='position:relative;height:28px;background:#0a0e2a;border-radius:10px;overflow:hidden;margin:8px 0'><div id='tf' style='height:100%;width:30%;transition:width .1s'></div><div style='position:absolute;left:45%;width:20%;top:0;height:100%;background:rgba(61,220,151,.5);pointer-events:none'></div></div><button class='pk' id='go'>🔥 Heat!</button>`;
+ $('#go').onclick=()=>{T=Math.min(100,T+10);bob()};
+ IV=setInterval(()=>{T-=.8+Math.random()*.8;const f=$('#tf');f.style.width=Math.max(0,T)+'%';f.style.background=`hsl(${240-T*2.4},90%,60%)`;
+  if(T>=45&&T<=65){ok+=.1;$('#hn').textContent=Math.floor(ok);if(ok>=need)return won(i)}
+  if(T<=0)lose(i,'Too cold! The batteries froze.');else if(T>=100)lose(i,'Too hot!')},100)}
+function mOrder(i,t){const S=t.s,sh=[...S].sort(()=>Math.random()-.5);let n=0;
+ $('#rg').innerHTML=`<div class='small'>${t.d}</div>`+sh.map(s=>`<button class='alt' data-s='${s}'>${s}</button>`).join('<br>');
+ document.querySelectorAll('#rg [data-s]').forEach(b=>b.onclick=()=>{if(b.dataset.s===S[n]){b.disabled=true;b.style.background='var(--gr)';bob();if(++n===S.length)won(i)}else lose(i,'Wrong order! Controllers ask you to start again.')})}
+const RP=[
+{h:'Fuel overfill! Fix it',m:mTiming,b:'🛑 STOP the pump!',d:'Fuel is overflowing! Press STOP when the marker is in the green zone.'},
+{h:'Clear the debris',m:mTap,em:'🪨',d:'Use the robot arm! Tap every piece of debris before time runs out.'},
+{h:'Fix the pad temperature',m:mHold,d:'Tap Heat to keep the thermometer in the green zone. It keeps cooling!'},
+{h:'Airspace clearance call',m:mOrder,s:['Check the weather report','Tell controllers your position and plan','Ask for clearance to launch','Read back the controller’s instructions'],d:'Tap the radio steps in the right order.'},
+{h:'Fit the shield panels',m:mTap,em:'🛡️',d:'Tap each drifting panel to bolt it on before time runs out.'},
+{h:'Re-aim the antenna',m:mTiming,b:'📡 LOCK signal!',d:'Press LOCK when the signal marker is in the green zone.'}];
+const S3=document.createElement('style');S3.textContent=`.st{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;opacity:.8;animation:tw 2s infinite alternate;pointer-events:none;z-index:0}@keyframes tw{to{opacity:.15}}`;document.head.appendChild(S3);
+['Fix the fuel overfill','Clear the debris','Warm the pad and batteries','Sky-watch with the telescope','Plan the crew’s nutrition','Check the night sky for comms'].forEach((s,k)=>CD[k].fx=[s,s]);
+CD[1].r='shield';CD[3].r='fuel';
+CD[4]={n:'Food & nutrition',i:'🥗',r:'food',f:'Crews need roughly 2,500 to 3,000 calories a day, depending on body size and activity. With no sunshine inside a spacecraft, astronauts take vitamin D supplements, and NASA plans menus with enough protein, vitamins and minerals.',d:['Meals are packed and balanced.','Some meals are missing key nutrients.','Food supply is short and unbalanced!'],fx:['Plan the crew’s nutrition','Plan the crew’s nutrition']};
+CD[3].f='Controllers clear the sky near a launch of aircraft and storms. People, radar and cameras all watch for anything that could cross the flight path.';
+CD[5].f='NASA uses relay satellites, called TDRS, to keep the space station in contact with Earth. Radio links carry commands, data and voice.';
+function repair(i){clearInterval(IV);cancelAnimationFrame(RA);const c=pf.c[i],t=RP[i];
+ app.innerHTML=`<h2>${c.i} ${t.h}</h2><div class='card'><div class='stage'>${astro(st.a,'work')}<div class='eq'>${c.i}</div></div><div class='card' style='background:#fff;color:#10153a'><b>📘 Fact box</b><br>${t.w}</div><div id='rg'></div></div>`;
+ inst(c.f);t.m(i,t)}
+function mTap(i,t){const n=2+pf.c[i].l;let left=n,T=20,tk=0;const ts=[];
+ $('#rg').innerHTML=`<div class='small'>${t.d} <b id='hn'>${n}</b> left. Time: <b id='tm'>20</b>s</div><div id='fld' style='position:relative;height:200px;background:#0a0e2a;border-radius:12px;overflow:hidden'></div>`;
+ const f=$('#fld');
+ for(let k=0;k<n;k++){const e=document.createElement('button');e.textContent=t.em;e.style.cssText='position:absolute;font-size:38px;padding:2px 8px;background:transparent;margin:0';e.x=Math.random()*80;e.y=Math.random()*70;e.vx=(Math.random()<.5?-1:1)*(.15+Math.random()*.35);e.vy=(Math.random()<.5?-1:1)*(.1+Math.random()*.3);
+  e.onclick=()=>{e.remove();ts.splice(ts.indexOf(e),1);bob();$('#hn').textContent=--left;if(!left)won(i)};f.appendChild(e);ts.push(e)}
+ IV=setInterval(()=>{ts.forEach(e=>{e.x+=e.vx;e.y+=e.vy;if(e.x<0||e.x>88)e.vx*=-1;if(e.y<0||e.y>78)e.vy*=-1;e.style.left=e.x+'%';e.style.top=e.y+'%'});
+  if(++tk%20===0){$('#tm').textContent=--T;if(T<=0)lose(i,'Time’s up!')}},50)}
+function mSky(i,t){const n=2+pf.c[i].l*2;let left=n,T=26,tk=0;const ts=[];
+ $('#rg').innerHTML=`<div class='small'>${t.d} ${t.k}: <b id='hn'>${n}</b> left. Time: <b id='tm'>26</b>s</div><div id='fld' style='position:relative;height:230px;background:radial-gradient(#1b1f5e,#05061a);border-radius:12px;overflow:hidden;touch-action:none;cursor:crosshair'><div id='ov' style='position:absolute;inset:0;pointer-events:none;z-index:3'></div></div>`;
+ const f=$('#fld'),ov=$('#ov');
+ for(let k=0;k<28;k++){const s=document.createElement('i');s.className='st';s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;animation-delay:${Math.random()*2}s`;f.appendChild(s)}
+ if(t.lens){const lens=(x,y)=>{ov.style.background=`radial-gradient(circle 66px at ${x}px ${y}px,transparent 64px,rgba(2,3,15,.96) 66px)`};lens(f.clientWidth/2,115);f.onpointermove=f.onpointerdown=e=>{const r=f.getBoundingClientRect();lens(e.clientX-r.left,e.clientY-r.top)}}
+ const mk=(em,bad)=>{const e=document.createElement('button');e.textContent=em;e.style.cssText='position:absolute;z-index:2;font-size:32px;padding:2px 6px;background:transparent;margin:0';e.x=Math.random()*85;e.y=Math.random()*75;e.vx=(Math.random()<.5?-1:1)*(.15+Math.random()*.4);e.vy=(Math.random()<.5?-1:1)*(.1+Math.random()*.3);
+  e.onclick=()=>{if(bad){T-=3;$('#tm').textContent=T;inst(t.bm);return}e.remove();ts.splice(ts.indexOf(e),1);bob();$('#hn').textContent=--left;if(!left)won(i)};f.appendChild(e);ts.push(e)};
+ for(let k=0;k<n;k++)mk(t.th[k%t.th.length],0);for(let k=0;k<5;k++)mk(t.de[k%t.de.length],1);
+ IV=setInterval(()=>{ts.forEach(e=>{e.x+=e.vx;e.y+=e.vy;if(e.x<0||e.x>88)e.vx*=-1;if(e.y<0||e.y>78)e.vy*=-1;e.style.left=e.x+'%';e.style.top=e.y+'%'});
+  if(++tk%20===0)$('#tm').textContent=--T;if(T<=0)lose(i,'Time’s up!')},50)}
+const FD=[['🍗 Chicken','Protein'],['🥜 Nuts','Protein'],['🫓 Tortilla','Grain'],['🍚 Rice','Grain'],['🥕 Carrots','Produce'],['🍓 Berries','Produce'],['💊 Vitamin D','Vitamin D'],['🍬 Candy',0,'Candy is mostly sugar and gives the crew very little nutrition.'],['🍟 Fries',0,'Greasy food and crumbs are messy in microgravity, and fries have little to offer a hard-working crew.'],['🥤 Fizzy soda',0,'Fizzy drinks are tricky in space. Bubbles don’t rise in microgravity, so the gas stays in your drink and stomach.']];
+function mFood(i,t){const need=pf.c[i].l===1?['Protein','Grain','Produce']:['Protein','Grain','Produce','Vitamin D'],got=[];
+ $('#rg').innerHTML=`<div class='small'>${t.d}</div><div class='card' id='tray'></div><div id='fd'></div>`;
+ const show=()=>{$('#tray').textContent=need.map(g=>(got.includes(g)?'✅ ':'⬜ ')+g).join('    ')};show();
+ FD.filter(f=>f[1]!=='Vitamin D'||need.length>3).sort(()=>Math.random()-.5).forEach(f=>{const b=document.createElement('button');b.className='alt';b.textContent=f[0];
+  b.onclick=()=>{if(!f[1])return lose(i,f[2]);if(got.includes(f[1])){inst('You already packed '+f[1]+'. Try a different food group!');return}got.push(f[1]);b.disabled=true;b.style.background='var(--gr)';bob();show();if(got.length===need.length)won(i)};$('#fd').appendChild(b)})}
+Object.assign(RP[0],{w:'What it is: rocket propellant, the fuel and oxidizer that burn to make thrust. Why fix it: most of a rocket’s mass at liftoff is propellant. Too little and the mission can’t reach its destination. Spills or overfills near hot, electrical equipment are dangerous.'});
+Object.assign(RP[1],{h:'Clear the debris',m:mTap,em:'🪨',d:'Use the robot arm! Tap each slow-moving piece of debris. You have plenty of time.',w:'What it is: space debris is junk orbiting Earth, such as old rocket parts, dead satellites and flecks of paint. Why clear it: in low Earth orbit, objects travel about 28,000 km/h (7.8 km per second), so even a tiny piece can damage a spacecraft. NASA tracks more than 27,000 pieces larger than a softball.'});
+Object.assign(RP[2],{w:'What it is: the temperature of the launch pad and the spacecraft’s batteries. Why fix it: very cold rubber seals stop sealing well and cold batteries lose power, so launches have temperature limits. Heaters keep systems in a safe range.'});
+Object.assign(RP[3],{h:'Sky-watch with the telescope',m:mSky,lens:1,k:'Threats',th:['✈️','⛈️','🛩️'],de:['⭐','🌙','✨'],bm:'Just a star! That wasted 3 seconds.',d:'Move the telescope across the sky. Tap every aircraft and storm cloud you find.',w:'What it is: airspace clearance is permission from controllers to use the sky near a launch. Why it matters: aircraft and storms near the flight path are dangerous, so the area must be clear. People, radar and cameras all watch the sky for threats.'});
+Object.assign(RP[4],{h:'Plan the crew’s nutrition',m:mFood,d:'Tap one food from each group to fill the tray. Avoid junk food!',w:'What it is: nutrition means getting the right mix of calories, protein, carbohydrates, fats, vitamins and minerals. Why it matters: crews exercise about 2 hours a day and burn lots of energy. Without sunshine they need vitamin D, so NASA plans balanced menus.'});
+Object.assign(RP[5],{h:'Night-sky comms check',m:mSky,lens:0,k:'Comm satellites',th:['🛰️'],de:['☄️','⭐'],bm:'That’s not a comm satellite! −3 seconds.',d:'Look at the night sky. Tap every comm satellite to link up. Don’t tap meteors or stars!',w:'What it is: the radio and antenna link between a spacecraft and Earth. Why it matters: it carries commands, data and voice. NASA uses relay satellites called TDRS to keep the space station in contact with Earth.'});
+function mTiming(i,t){const l=pf.c[i].l,need=l+1;let hits=0,p=0;
+ $('#rg').innerHTML=`<div class='small'>${t.d} Hits needed: <b id='hn'>${need}</b></div><div id='timing'><div id='zone'></div><div id='dot'></div></div><button class='pk' id='go'>${t.b}</button>`;
+ const t0=performance.now(),sp=t.sp?t.sp*(1+l*.3):.0009+l*.0006;
+ const tick=n=>{p=Math.abs(((n-t0)*sp)%2-1);const d=$('#dot');if(d)d.style.left=p*($('#timing').clientWidth-30)+'px';RA=requestAnimationFrame(tick)};RA=requestAnimationFrame(tick);
+ $('#go').onclick=()=>{if(p>.38&&p<.62){hits++;bob();$('#hn').textContent=need-hits;if(hits>=need)won(i)}else lose(i,'Missed the green zone!')}}
+RP[0].sp=.0005;
+function pfDone(i){pf.c[i].l=0;pfShow()}
+const _ps2=pfShow;
+pfShow=function(){pf.hrs=4;_ps2();const c=app.querySelector('.card.small');if(c)c.innerHTML='Fix every problem yourself! Each problem you leave unfixed costs supplies at launch, and two or more NO-GOs scrub the launch. Delays so far: '+pf.dl}
+const S4=document.createElement('style');S4.textContent=`.on.walk .legL,.on.walk .armR{animation:lg .6s infinite alternate}.on.walk .legR,.on.walk .armL{animation:lg .6s infinite alternate-reverse}.on.walk .fig{animation:hop .6s infinite alternate}`;document.head.appendChild(S4);
+FACTS.delay='Radio signals travel at light speed, but the Moon is about 384,000 km away, so a message takes about 1.3 seconds each way. Mission Control and the crew notice a short pause when they talk.';
+function pickM(){const m=MIS.moon;
+ app.innerHTML=`<h2>Your mission</h2><div class='card'><h2>${m.icon} ${m.name}</h2><p>${m.info}</p><p class='small'>Radio delay to Earth: ${m.delay}. After 20 sols you will land on the Moon!</p><button class='alt' onclick="pre('moon')">Preflight check</button></div>`;
+ inst('We’re going to the Moon! NASA’s Artemis program plans to land astronauts near the Moon’s south pole.');
+}
+const _end=end;
+end=function(){const won=st.day>20&&st.o2>0&&st.food>0&&st.pow>0;if(won)landing();else _end()};
+function landing(){
+ app.innerHTML=`<h2>🌙 Time to land!</h2><div class='card'>You survived all 20 sols! Now ${st.a.n} must land at the rim of Shackleton crater. <b>Hold the engine button</b> to slow down. Touch down slower than <b>3 m/s</b> for a soft landing. Your lander fuel: <b>${Math.round(55+st.fuel*.45)}</b> (it depends on how much fuel you saved).</div><button class='pk' onclick='landGo()'>Start descent</button>`;
+ inst('Moon gravity is about one-sixth of Earth’s, but a lander still needs its engine to slow down. Apollo 11 touched down with less than a minute of fuel left.');
+}
+function landGo(){
+ app.innerHTML=`<h2>🌙 Descent</h2><div class='card small'>Altitude <b id='la'></b> m · Speed <b id='ls'></b> m/s (land under 3)<div class='bar'><i id='lf' style='width:100%;background:#ff9f1c'></i></div></div><canvas id='cv' width='320' height='380' style='width:100%;max-width:320px;display:block;margin:auto;border-radius:12px'></canvas><button class='pk' id='fire' style='width:100%;font-size:1.2rem;margin-top:8px;touch-action:none'>🔥 Hold to fire engine</button>`;
+ const cv=$('#cv'),x=cv.getContext('2d'),btn=$('#fire');
+ let alt=120,v=2,fuel=55+st.fuel*.45,thr=0,last=performance.now();const f0=fuel;
+ const S=Array.from({length:40},()=>[Math.random()*320,Math.random()*300,Math.random()*1.5+.5]);
+ btn.onpointerdown=e=>{e.preventDefault();thr=1};['pointerup','pointerleave','pointercancel'].forEach(k=>btn['on'+k]=()=>{thr=0});btn.oncontextmenu=e=>e.preventDefault();
+ window.onkeydown=e=>{if(e.code==='Space'){e.preventDefault();thr=1}};window.onkeyup=e=>{if(e.code==='Space')thr=0};
+ const draw=()=>{x.fillStyle='#05061a';x.fillRect(0,0,320,380);x.fillStyle='#fff';S.forEach(s=>x.fillRect(s[0],s[1],s[2],s[2]));x.font='30px serif';x.fillText('🌍',250,50);
+  x.fillStyle='#8c8fa8';x.fillRect(0,340,320,40);x.fillStyle='#6f7290';[[40,355,16],[110,362,10],[230,356,18],[290,366,9]].forEach(c=>{x.beginPath();x.ellipse(c[0],c[1],c[2],c[2]/3,0,0,7);x.fill()});
+  x.fillStyle='#3ddc97';x.fillRect(120,338,80,4);
+  const y=322-alt*2.4;x.save();x.translate(160,y);x.strokeStyle='#cfd6ff';x.lineWidth=3;x.beginPath();x.moveTo(-14,8);x.lineTo(-24,18);x.moveTo(14,8);x.lineTo(24,18);x.stroke();
+  x.fillStyle='#e8ebff';x.fillRect(-16,-14,32,22);x.fillStyle=st.a.c;x.fillRect(-16,-14,32,6);x.fillStyle='#1b2a6b';x.beginPath();x.arc(0,-2,6,0,7);x.fill();
+  if(thr&&fuel>0){x.fillStyle='#ffd23f';x.beginPath();x.moveTo(-8,8);x.lineTo(8,8);x.lineTo(0,24+Math.random()*10);x.fill()}x.restore()};
+ const hud=()=>{$('#la').textContent=Math.max(0,Math.round(alt));const s=$('#ls');s.textContent=v.toFixed(1);s.style.color=v<3?'var(--gr)':v<6?'var(--yl)':'var(--rd)';$('#lf').style.width=fuel/f0*100+'%'};
+ const step=n=>{if(!$('#cv'))return;const dt=Math.min(.05,(n-last)/1000);last=n;
+  if(thr&&fuel>0){v-=4.5*dt;fuel=Math.max(0,fuel-7*dt)}v+=1.62*dt;alt=Math.min(130,alt-v*dt);draw();hud();
+  if(alt<=0){alt=0;draw();window.onkeydown=window.onkeyup=null;return landed(v<3?'soft':v<6?'hard':'crash',v)}
+  RA=requestAnimationFrame(step)};
+ cancelAnimationFrame(RA);RA=requestAnimationFrame(step);
+}
+function landed(r,v){
+ if(r==='crash'){app.innerHTML=`<h2>💥 Crash landing!</h2><div class='card'>You hit the surface at ${v.toFixed(1)} m/s. Real landers must slow to just a few metres per second. Try again!</div><button class='pk' onclick='st.tries=(st.tries||0)+1;landing()'>Try the landing again</button>`;inst('Landing is hard! Pilots practise this many times in simulators.');return}
+ st.land=r;st.ls=v;finale();
+}
+function finale(){
+ const bonus=Math.max(0,(st.land==='soft'?30:10)-5*(st.tries||0));
+ const score=st.sc+Math.round((st.o2+st.pow+st.food+st.shield+st.mor)/10)+30+bonus;
+ app.innerHTML=`<h1>🎉 You landed on the Moon!</h1><div class='card'><div class='stage' style='background:linear-gradient(#05061a,#1b1f5e);position:relative;height:220px;overflow:hidden'><div style='position:absolute;top:10px;right:16px;font-size:34px'>🌍</div><div style='position:absolute;bottom:0;left:0;right:0;height:34px;background:#8c8fa8'></div><div style='position:absolute;right:14%;bottom:30px;font-size:44px'>🚩</div><div id='wk' style='position:relative;margin-bottom:26px;margin-right:30%;transition:transform 3s linear'>${astro(st.a,'walk')}</div></div><button class='pk' id='stp'>👣 Step onto the Moon!</button><p>${st.land==='soft'?'A soft landing at '+st.ls.toFixed(1)+' m/s!':'A hard landing at '+st.ls.toFixed(1)+' m/s, but everyone is safe.'}</p><h2>Score: ${score}</h2><p>Research points: ${st.sc}</p></div><div class='card'><b>What you learned</b><ul><li>Every resource is linked: power runs air, food, heat and research.</li><li>Radiation shielding is worth building before a storm, not during.</li><li>Saved fuel makes landing safer.</li></ul></div><button onclick='st={};title()'>Play again</button>`;
+ inst('Mission complete! On the Moon, astronauts bounce along because gravity is about one-sixth of Earth’s.');
+ $('#stp').onclick=()=>{const w=$('#wk'),s=w.querySelector('svg');s.classList.add('on');w.style.transform='translateX(130px)';$('#stp').disabled=true;setTimeout(()=>s.classList.remove('on'),3000)};
+}
+title();
+</script></body></html>
